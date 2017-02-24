@@ -1,5 +1,5 @@
 env.info( '*** MOOSE STATIC INCLUDE START *** ' ) 
-env.info( 'Moose Generation Timestamp: 20170208_1506' ) 
+env.info( 'Moose Generation Timestamp: 20170224_1309' ) 
 local base = _G
 
 Include = {}
@@ -4059,7 +4059,7 @@ end
 -- 
 -- ![Objects](..\Presentations\EVENT\Dia6.JPG)
 -- 
--- For most DCS events, the above order of updating will be followed.1
+-- For most DCS events, the above order of updating will be followed.
 -- 
 -- ![Objects](..\Presentations\EVENT\Dia7.JPG)
 -- 
@@ -4145,6 +4145,22 @@ end
 -- 
 -- ![Objects](..\Presentations\EVENT\Dia14.JPG)
 -- 
+-- **IMPORTANT NOTE:** Some events can involve not just UNIT objects, but also STATIC objects!!! 
+-- In that case the initiator or target unit fields will refer to a STATIC object!
+-- In case a STATIC object is involved, the documentation indicates which fields will and won't not be populated.
+-- The fields **IniCategory** and **TgtCategory** contain the indicator which **kind of object is involved** in the event.
+-- You can use the enumerator **Object.Category.UNIT** and **Object.Category.STATIC** to check on IniCategory and TgtCategory.
+-- Example code snippet:
+--      
+--      if Event.IniCategory == Object.Category.UNIT then
+--       ...
+--      end
+--      if Event.IniCategory == Object.Category.STATIC then
+--       ...
+--      end 
+-- 
+-- When a static object is involved in the event, the Group and Player fields won't be populated.
+-- 
 -- ====
 -- 
 -- # **API CHANGE HISTORY**
@@ -4172,6 +4188,11 @@ end
 --   * [**FlightControl**](https://forums.eagle.ru/member.php?u=89536): Design & Programming & documentation.
 --
 -- @module Event
+
+-- TODO: Need to update the EVENTDATA documentation with IniPlayerName and TgtPlayerName
+-- TODO: Need to update the EVENTDATA documentation with IniCategory and TgtCategory
+
+
 
 --- The EVENT structure
 -- @type EVENT
@@ -4212,23 +4233,39 @@ EVENTS = {
 }
 
 --- The Event structure
+-- Note that at the beginning of each field description, there is an indication which field will be populated depending on the object type involved in the Event:
+--   
+--   * A (Object.Category.)UNIT : A UNIT object type is involved in the Event.
+--   * A (Object.Category.)STATIC : A STATIC object type is involved in the Event.µ
+--   
 -- @type EVENTDATA
--- @field id
--- @field initiator
--- @field target
--- @field weapon
--- @field IniDCSUnit
--- @field IniDCSUnitName
--- @field Wrapper.Unit#UNIT           IniUnit
--- @field #string             IniUnitName
--- @field IniDCSGroup
--- @field IniDCSGroupName
--- @field TgtDCSUnit
--- @field TgtDCSUnitName
--- @field Wrapper.Unit#UNIT           TgtUnit
--- @field #string             TgtUnitName
--- @field TgtDCSGroup
--- @field TgtDCSGroupName
+-- @field #number id The identifier of the event.
+-- 
+-- @field Dcs.DCSUnit#Unit                  initiator         (UNIT/STATIC) The initiating @{Dcs.DCSUnit#Unit} or @{Dcs.DCSStaticObject#StaticObject}.
+-- @field Dcs.DCSObject#Object.Category     IniCategory       (UNIT/STATIC) The initiator object category ( Object.Category.UNIT or Object.Category.STATIC ).
+-- @field Dcs.DCSUnit#Unit                  IniDCSUnit        (UNIT/STATIC) The initiating @{Dcs.DCSUnit#Unit} or @{Dcs.DCSStaticObject#StaticObject}.
+-- @field #string                           IniDCSUnitName    (UNIT/STATIC) The initiating Unit name.
+-- @field Wrapper.Unit#UNIT                 IniUnit           (UNIT/STATIC) The initiating MOOSE wrapper @{Wrapper.Unit#UNIT} of the initiator Unit object.
+-- @field #string                           IniUnitName       (UNIT/STATIC) The initiating UNIT name (same as IniDCSUnitName).
+-- @field Dcs.DCSGroup#Group                IniDCSGroup       (UNIT) The initiating {Dcs.DCSGroup#Group}.
+-- @field #string                           IniDCSGroupName   (UNIT) The initiating Group name.
+-- @field Wrapper.Group#GROUP               IniGroup          (UNIT) The initiating MOOSE wrapper @{Wrapper.Group#GROUP} of the initiator Group object.
+-- @field #string                           IniGroupName      (UNIT) The initiating GROUP name (same as IniDCSGroupName).
+-- @field #string                           IniPlayerName     (UNIT) The name of the initiating player in case the Unit is a client or player slot.
+-- 
+-- @field Dcs.DCSUnit#Unit                  target            (UNIT/STATIC) The target @{Dcs.DCSUnit#Unit} or @{Dcs.DCSStaticObject#StaticObject}.
+-- @field Dcs.DCSObject#Object.Category     TgtCategory       (UNIT/STATIC) The target object category ( Object.Category.UNIT or Object.Category.STATIC ).
+-- @field Dcs.DCSUnit#Unit                  TgtDCSUnit        (UNIT/STATIC) The target @{Dcs.DCSUnit#Unit} or @{Dcs.DCSStaticObject#StaticObject}.
+-- @field #string                           TgtDCSUnitName    (UNIT/STATIC) The target Unit name.
+-- @field Wrapper.Unit#UNIT                 TgtUnit           (UNIT/STATIC) The target MOOSE wrapper @{Wrapper.Unit#UNIT} of the target Unit object.
+-- @field #string                           TgtUnitName       (UNIT/STATIC) The target UNIT name (same as TgtDCSUnitName).
+-- @field Dcs.DCSGroup#Group                TgtDCSGroup       (UNIT) The target {Dcs.DCSGroup#Group}.
+-- @field #string                           TgtDCSGroupName   (UNIT) The target Group name.
+-- @field Wrapper.Group#GROUP               TgtGroup          (UNIT) The target MOOSE wrapper @{Wrapper.Group#GROUP} of the target Group object.
+-- @field #string                           TgtGroupName      (UNIT) The target GROUP name (same as TgtDCSGroupName).
+-- @field #string                           TgtPlayerName     (UNIT) The name of the target player in case the Unit is a client or player slot.
+-- 
+-- @field weapon The weapon used during the event.
 -- @field Weapon
 -- @field WeaponName
 -- @field WeaponTgtDCSUnit
@@ -5031,25 +5068,40 @@ function EVENT:onEvent( Event )
   end
 
   if self and self.Events and self.Events[Event.id] then
-    if Event.initiator and Event.initiator:getCategory() == Object.Category.UNIT then
-      Event.IniDCSUnit = Event.initiator
-      Event.IniDCSGroup = Event.IniDCSUnit:getGroup()
-      Event.IniDCSUnitName = Event.IniDCSUnit:getName()
-      Event.IniUnitName = Event.IniDCSUnitName
-      Event.IniUnit = UNIT:FindByName( Event.IniDCSUnitName )
-      if not Event.IniUnit then
-        -- Unit can be a CLIENT. Most likely this will be the case ...
-        Event.IniUnit = CLIENT:FindByName( Event.IniDCSUnitName, '', true )
+  
+
+    if Event.initiator then    
+      Event.IniCategory = Event.initiator:getCategory()
+      if Event.IniCategory == Object.Category.UNIT then
+        Event.IniDCSUnit = Event.initiator
+        Event.IniDCSUnitName = Event.IniDCSUnit:getName()
+        Event.IniUnitName = Event.IniDCSUnitName
+        Event.IniDCSGroup = Event.IniDCSUnit:getGroup()
+        Event.IniUnit = UNIT:FindByName( Event.IniDCSUnitName )
+        if not Event.IniUnit then
+          -- Unit can be a CLIENT. Most likely this will be the case ...
+          Event.IniUnit = CLIENT:FindByName( Event.IniDCSUnitName, '', true )
+        end
+        Event.IniDCSGroupName = ""
+        if Event.IniDCSGroup and Event.IniDCSGroup:isExist() then
+          Event.IniDCSGroupName = Event.IniDCSGroup:getName()
+          Event.IniGroup = GROUP:FindByName( Event.IniDCSGroupName )
+          self:E( { IniGroup = Event.IniGroup } )
+        end
+        Event.IniPlayerName = Event.IniDCSUnit:getPlayerName()
       end
-      Event.IniDCSGroupName = ""
-      if Event.IniDCSGroup and Event.IniDCSGroup:isExist() then
-        Event.IniDCSGroupName = Event.IniDCSGroup:getName()
-        Event.IniGroup = GROUP:FindByName( Event.IniDCSGroupName )
-        self:E( { IniGroup = Event.IniGroup } )
+      
+      if Event.IniCategory == Object.Category.STATIC then
+        Event.IniDCSUnit = Event.initiator
+        Event.IniDCSUnitName = Event.IniDCSUnit:getName()
+        Event.IniUnitName = Event.IniDCSUnitName
+        Event.IniUnit = STATIC:FindByName( Event.IniDCSUnitName )
       end
     end
+    
     if Event.target then
-      if Event.target and Event.target:getCategory() == Object.Category.UNIT then
+      Event.TgtCategory = Event.target:getCategory()
+      if Event.TgtCategory == Object.Category.UNIT then 
         Event.TgtDCSUnit = Event.target
         Event.TgtDCSGroup = Event.TgtDCSUnit:getGroup()
         Event.TgtDCSUnitName = Event.TgtDCSUnit:getName()
@@ -5059,8 +5111,19 @@ function EVENT:onEvent( Event )
         if Event.TgtDCSGroup and Event.TgtDCSGroup:isExist() then
           Event.TgtDCSGroupName = Event.TgtDCSGroup:getName()
         end
+        Event.TgtPlayerName = Event.TgtDCSUnit:getPlayerName()
+      end
+      
+      if Event.TgtCategory == Object.Category.STATIC then
+        Event.TgtDCSUnit = Event.target
+        Event.TgtDCSUnitName = Event.TgtDCSUnit:getName()
+        Event.TgtUnitName = Event.TgtDCSUnitName
+        Event.TgtUnit = STATIC:FindByName( Event.TgtDCSUnitName )
       end
     end
+    
+    
+    
     if Event.weapon then
       Event.Weapon = Event.weapon
       Event.WeaponName = Event.Weapon:getTypeName()
@@ -5158,6 +5221,21 @@ function EVENT:onEvent( Event )
   end
 end
 
+--- The EVENTHANDLER structure
+-- @type EVENTHANDLER
+-- @extends Core.Base#BASE
+EVENTHANDLER = {
+  ClassName = "EVENTHANDLER",
+  ClassID = 0,
+}
+
+--- The EVENTHANDLER constructor
+-- @param #EVENTHANDLER self
+-- @return #EVENTHANDLER
+function EVENTHANDLER:New()
+  self = BASE:Inherit( self, BASE:New() ) -- #EVENTHANDLER
+  return self
+end
 --- This module contains the MENU classes.
 -- 
 -- ===
@@ -6050,7 +6128,8 @@ do
 
 end
 
---- This module contains the ZONE classes, inherited from @{Zone#ZONE_BASE}.
+--- This core module contains the ZONE classes, inherited from @{Zone#ZONE_BASE}.
+-- 
 -- There are essentially two core functions that zones accomodate:
 -- 
 --   * Test if an object is within the zone boundaries.
@@ -6076,94 +6155,111 @@ end
 -- 
 -- ===
 -- 
--- 1) @{Zone#ZONE_BASE} class, extends @{Base#BASE}
--- ================================================
+-- # 1) @{Zone#ZONE_BASE} class, extends @{Base#BASE}
+-- 
 -- This class is an abstract BASE class for derived classes, and is not meant to be instantiated.
 -- 
--- ### 1.1) Each zone has a name:
+-- ## 1.1) Each zone has a name:
 -- 
 --   * @{#ZONE_BASE.GetName}(): Returns the name of the zone.
 -- 
--- ### 1.2) Each zone implements two polymorphic functions defined in @{Zone#ZONE_BASE}:
+-- ## 1.2) Each zone implements two polymorphic functions defined in @{Zone#ZONE_BASE}:
 -- 
 --   * @{#ZONE_BASE.IsPointVec2InZone}(): Returns if a @{Point#POINT_VEC2} is within the zone.
 --   * @{#ZONE_BASE.IsPointVec3InZone}(): Returns if a @{Point#POINT_VEC3} is within the zone.
 --   
--- ### 1.3) A zone has a probability factor that can be set to randomize a selection between zones:
+-- ## 1.3) A zone has a probability factor that can be set to randomize a selection between zones:
 -- 
 --   * @{#ZONE_BASE.SetRandomizeProbability}(): Set the randomization probability of a zone to be selected, taking a value between 0 and 1 ( 0 = 0%, 1 = 100% )
 --   * @{#ZONE_BASE.GetRandomizeProbability}(): Get the randomization probability of a zone to be selected, passing a value between 0 and 1 ( 0 = 0%, 1 = 100% )
 --   * @{#ZONE_BASE.GetZoneMaybe}(): Get the zone taking into account the randomization probability. nil is returned if this zone is not a candidate.
 -- 
--- ### 1.4) A zone manages Vectors:
+-- ## 1.4) A zone manages Vectors:
 -- 
 --   * @{#ZONE_BASE.GetVec2}(): Returns the @{DCSTypes#Vec2} coordinate of the zone.
 --   * @{#ZONE_BASE.GetRandomVec2}(): Define a random @{DCSTypes#Vec2} within the zone.
 -- 
--- ### 1.5) A zone has a bounding square:
+-- ## 1.5) A zone has a bounding square:
 -- 
 --   * @{#ZONE_BASE.GetBoundingSquare}(): Get the outer most bounding square of the zone.
 -- 
--- ### 1.6) A zone can be marked: 
+-- ## 1.6) A zone can be marked: 
 -- 
 --   * @{#ZONE_BASE.SmokeZone}(): Smokes the zone boundaries in a color.
 --   * @{#ZONE_BASE.FlareZone}(): Flares the zone boundaries in a color.
 -- 
 -- ===
 -- 
--- 2) @{Zone#ZONE_RADIUS} class, extends @{Zone#ZONE_BASE}
--- =======================================================
+-- # 2) @{Zone#ZONE_RADIUS} class, extends @{Zone#ZONE_BASE}
+-- 
 -- The ZONE_RADIUS class defined by a zone name, a location and a radius.
 -- This class implements the inherited functions from Core.Zone#ZONE_BASE taking into account the own zone format and properties.
 -- 
--- ### 2.1) @{Zone#ZONE_RADIUS} constructor:
+-- ## 2.1) @{Zone#ZONE_RADIUS} constructor
 -- 
---   * @{#ZONE_BASE.New}(): Constructor.
+--   * @{#ZONE_RADIUS.New}(): Constructor.
 --   
--- ### 2.2) Manage the radius of the zone:
+-- ## 2.2) Manage the radius of the zone
 -- 
---   * @{#ZONE_BASE.SetRadius}(): Sets the radius of the zone.
---   * @{#ZONE_BASE.GetRadius}(): Returns the radius of the zone.
+--   * @{#ZONE_RADIUS.SetRadius}(): Sets the radius of the zone.
+--   * @{#ZONE_RADIUS.GetRadius}(): Returns the radius of the zone.
 -- 
--- ### 2.3) Manage the location of the zone:
+-- ## 2.3) Manage the location of the zone
 -- 
---   * @{#ZONE_BASE.SetVec2}(): Sets the @{DCSTypes#Vec2} of the zone.
---   * @{#ZONE_BASE.GetVec2}(): Returns the @{DCSTypes#Vec2} of the zone.
---   * @{#ZONE_BASE.GetVec3}(): Returns the @{DCSTypes#Vec3} of the zone, taking an additional height parameter.
+--   * @{#ZONE_RADIUS.SetVec2}(): Sets the @{DCSTypes#Vec2} of the zone.
+--   * @{#ZONE_RADIUS.GetVec2}(): Returns the @{DCSTypes#Vec2} of the zone.
+--   * @{#ZONE_RADIUS.GetVec3}(): Returns the @{DCSTypes#Vec3} of the zone, taking an additional height parameter.
+-- 
+-- ## 2.4) Zone point randomization
+-- 
+-- Various functions exist to find random points within the zone.
+-- 
+--   * @{#ZONE_RADIUS.GetRandomVec2}(): Gets a random 2D point in the zone.
+--   * @{#ZONE_RADIUS.GetRandomPointVec2}(): Gets a @{Point#POINT_VEC2} object representing a random 2D point in the zone.
+--   * @{#ZONE_RADIUS.GetRandomPointVec3}(): Gets a @{Point#POINT_VEC3} object representing a random 3D point in the zone. Note that the height of the point is at landheight.
 -- 
 -- ===
 -- 
--- 3) @{Zone#ZONE} class, extends @{Zone#ZONE_RADIUS}
--- ==========================================
+-- # 3) @{Zone#ZONE} class, extends @{Zone#ZONE_RADIUS}
+-- 
 -- The ZONE class, defined by the zone name as defined within the Mission Editor.
 -- This class implements the inherited functions from {Core.Zone#ZONE_RADIUS} taking into account the own zone format and properties.
 -- 
 -- ===
 -- 
--- 4) @{Zone#ZONE_UNIT} class, extends @{Zone#ZONE_RADIUS}
--- =======================================================
+-- # 4) @{Zone#ZONE_UNIT} class, extends @{Zone#ZONE_RADIUS}
+-- 
 -- The ZONE_UNIT class defined by a zone around a @{Unit#UNIT} with a radius.
 -- This class implements the inherited functions from @{Zone#ZONE_RADIUS} taking into account the own zone format and properties.
 -- 
 -- ===
 -- 
--- 5) @{Zone#ZONE_GROUP} class, extends @{Zone#ZONE_RADIUS}
--- =======================================================
+-- # 5) @{Zone#ZONE_GROUP} class, extends @{Zone#ZONE_RADIUS}
+-- 
 -- The ZONE_GROUP class defines by a zone around a @{Group#GROUP} with a radius. The current leader of the group defines the center of the zone.
 -- This class implements the inherited functions from @{Zone#ZONE_RADIUS} taking into account the own zone format and properties.
 -- 
 -- ===
 -- 
--- 6) @{Zone#ZONE_POLYGON_BASE} class, extends @{Zone#ZONE_BASE}
--- ========================================================
+-- # 6) @{Zone#ZONE_POLYGON_BASE} class, extends @{Zone#ZONE_BASE}
+-- 
 -- The ZONE_POLYGON_BASE class defined by a sequence of @{Group#GROUP} waypoints within the Mission Editor, forming a polygon.
 -- This class implements the inherited functions from @{Zone#ZONE_RADIUS} taking into account the own zone format and properties.
 -- This class is an abstract BASE class for derived classes, and is not meant to be instantiated.
 -- 
+-- ## 6.1) Zone point randomization
+-- 
+-- Various functions exist to find random points within the zone.
+-- 
+--   * @{#ZONE_POLYGON_BASE.GetRandomVec2}(): Gets a random 2D point in the zone.
+--   * @{#ZONE_POLYGON_BASE.GetRandomPointVec2}(): Return a @{Point#POINT_VEC2} object representing a random 2D point within the zone.
+--   * @{#ZONE_POLYGON_BASE.GetRandomPointVec3}(): Return a @{Point#POINT_VEC3} object representing a random 3D point at landheight within the zone.
+-- 
+-- 
 -- ===
 -- 
--- 7) @{Zone#ZONE_POLYGON} class, extends @{Zone#ZONE_POLYGON_BASE}
--- ================================================================
+-- # 7) @{Zone#ZONE_POLYGON} class, extends @{Zone#ZONE_POLYGON_BASE}
+-- 
 -- The ZONE_POLYGON class defined by a sequence of @{Group#GROUP} waypoints within the Mission Editor, forming a polygon.
 -- This class implements the inherited functions from @{Zone#ZONE_RADIUS} taking into account the own zone format and properties.
 -- 
@@ -6178,6 +6274,14 @@ end
 --   * _Removed_ parts are expressed in italic type face.
 -- 
 -- Hereby the change log:
+-- 
+-- 2017-02-18: ZONE_POLYGON_BASE:**GetRandomPointVec2()** added.
+-- 
+-- 2017-02-18: ZONE_POLYGON_BASE:**GetRandomPointVec3()** added.
+-- 
+-- 2017-02-18: ZONE_RADIUS:**GetRandomPointVec3( inner, outer )** added.
+-- 
+-- 2017-02-18: ZONE_RADIUS:**GetRandomPointVec2( inner, outer )** added.
 -- 
 -- 2016-08-15: ZONE_BASE:**GetName()** added.
 -- 
@@ -6264,10 +6368,18 @@ function ZONE_BASE:GetVec2()
 
   return nil 
 end
+
 --- Define a random @{DCSTypes#Vec2} within the zone.
 -- @param #ZONE_BASE self
 -- @return Dcs.DCSTypes#Vec2 The Vec2 coordinates.
 function ZONE_BASE:GetRandomVec2()
+  return nil
+end
+
+--- Define a random @{Point#POINT_VEC2} within the zone.
+-- @param #ZONE_BASE self
+-- @return Core.Point#POINT_VEC2 The PointVec2 coordinates.
+function ZONE_BASE:GetRandomPointVec2()
   return nil
 end
 
@@ -6499,12 +6611,12 @@ function ZONE_RADIUS:IsPointVec3InZone( Vec3 )
   return InZone
 end
 
---- Returns a random location within the zone.
+--- Returns a random Vec2 location within the zone.
 -- @param #ZONE_RADIUS self
--- @param #number inner minimal distance from the center of the zone
--- @param #number outer minimal distance from the outer edge of the zone
+-- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
+-- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
 -- @return Dcs.DCSTypes#Vec2 The random location within the zone.
-function ZONE_RADIUS:GetRandomVec2(inner, outer)
+function ZONE_RADIUS:GetRandomVec2( inner, outer )
 	self:F( self.ZoneName, inner, outer )
 
 	local Point = {}
@@ -6519,6 +6631,36 @@ function ZONE_RADIUS:GetRandomVec2(inner, outer)
 	self:T( { Point } )
 	
 	return Point
+end
+
+--- Returns a @{Point#POINT_VEC2} object reflecting a random 2D location within the zone.
+-- @param #ZONE_RADIUS self
+-- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
+-- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
+-- @return Core.Point#POINT_VEC2 The @{Point#POINT_VEC2} object reflecting the random 3D location within the zone.
+function ZONE_RADIUS:GetRandomPointVec2( inner, outer )
+  self:F( self.ZoneName, inner, outer )
+
+  local PointVec2 = POINT_VEC2:NewFromVec2( self:GetRandomVec2() )
+
+  self:T3( { PointVec2 } )
+  
+  return PointVec2
+end
+
+--- Returns a @{Point#POINT_VEC3} object reflecting a random 3D location within the zone.
+-- @param #ZONE_RADIUS self
+-- @param #number inner (optional) Minimal distance from the center of the zone. Default is 0.
+-- @param #number outer (optional) Maximal distance from the outer edge of the zone. Default is the radius of the zone.
+-- @return Core.Point#POINT_VEC3 The @{Point#POINT_VEC3} object reflecting the random 3D location within the zone.
+function ZONE_RADIUS:GetRandomPointVec3( inner, outer )
+  self:F( self.ZoneName, inner, outer )
+
+  local PointVec3 = POINT_VEC3:NewFromVec2( self:GetRandomVec2() )
+
+  self:T3( { PointVec3 } )
+  
+  return PointVec3
 end
 
 
@@ -6834,6 +6976,33 @@ function ZONE_POLYGON_BASE:GetRandomVec2()
 
   return Vec2
 end
+
+--- Return a @{Point#POINT_VEC2} object representing a random 2D point at landheight within the zone.
+-- @param #ZONE_POLYGON_BASE self
+-- @return @{Point#POINT_VEC2}
+function ZONE_POLYGON_BASE:GetRandomPointVec2()
+  self:F2()
+
+  local PointVec2 = POINT_VEC2:NewFromVec2( self:GetRandomVec2() )
+  
+  self:T2( PointVec2 )
+
+  return PointVec2
+end
+
+--- Return a @{Point#POINT_VEC3} object representing a random 3D point at landheight within the zone.
+-- @param #ZONE_POLYGON_BASE self
+-- @return @{Point#POINT_VEC3}
+function ZONE_POLYGON_BASE:GetRandomPointVec3()
+  self:F2()
+
+  local PointVec3 = POINT_VEC3:NewFromVec2( self:GetRandomVec2() )
+  
+  self:T2( PointVec3 )
+
+  return PointVec3
+end
+
 
 --- Get the bounding square the zone.
 -- @param #ZONE_POLYGON_BASE self
@@ -9994,6 +10163,8 @@ end
 -- 
 -- Hereby the change log:
 -- 
+-- 2017-02-18: POINT_VEC3:**NewFromVec2( Vec2, LandHeightAdd )** added.
+-- 
 -- 2016-08-12: POINT_VEC3:**Translate( Distance, Angle )** added.
 -- 
 -- 2016-08-06: Made PointVec3 and Vec3, PointVec2 and Vec2 terminology used in the code consistent.
@@ -10080,6 +10251,24 @@ function POINT_VEC3:New( x, y, z )
   self.y = y
   self.z = z
   
+  return self
+end
+
+--- Create a new POINT_VEC3 object from Vec2 coordinates.
+-- @param #POINT_VEC3 self
+-- @param Dcs.DCSTypes#Vec2 Vec2 The Vec2 point.
+-- @return Core.Point#POINT_VEC3 self
+function POINT_VEC3:NewFromVec2( Vec2, LandHeightAdd )
+
+  local LandHeight = land.getHeight( Vec2 )
+
+  LandHeightAdd = LandHeightAdd or 0
+  LandHeight = LandHeight + LandHeightAdd
+  
+  self = self:New( Vec2.x, LandHeight, Vec2.y )
+  
+  self:F2( self )
+
   return self
 end
 
@@ -11566,16 +11755,20 @@ do -- FSM
     return function( self, DelaySeconds, ... )
       self:T2( "Delayed Event: " .. EventName )
       local CallID = 0
-      if DelaySeconds < 0 then -- Only call the event ONCE!
-        DelaySeconds = math.abs( DelaySeconds )
-        if not self._EventSchedules[EventName] then
-          CallID = self.CallScheduler:Schedule( self, self._handler, { EventName, ... }, DelaySeconds or 1 )
-          self._EventSchedules[EventName] = CallID
+      if DelaySeconds ~= nil then
+        if DelaySeconds < 0 then -- Only call the event ONCE!
+          DelaySeconds = math.abs( DelaySeconds )
+          if not self._EventSchedules[EventName] then
+            CallID = self.CallScheduler:Schedule( self, self._handler, { EventName, ... }, DelaySeconds or 1 )
+            self._EventSchedules[EventName] = CallID
+          else
+            -- reschedule
+          end
         else
-          -- reschedule
+          CallID = self.CallScheduler:Schedule( self, self._handler, { EventName, ... }, DelaySeconds or 1 )
         end
       else
-        CallID = self.CallScheduler:Schedule( self, self._handler, { EventName, ... }, DelaySeconds or 1 )
+        error( "FSM: An asynchronous event trigger requires a DelaySeconds parameter!!! This can be positive or negative! Sorry, but will not process this." )
       end
       self:T2( { CallID = CallID } )
     end
@@ -15225,7 +15418,7 @@ function GROUP:IsAlive()
   local DCSGroup = self:GetDCSObject()
 
   if DCSGroup then
-    local GroupIsAlive = DCSGroup:isExist()
+    local GroupIsAlive = DCSGroup:isExist() and DCSGroup:getUnit(1) ~= nil
     self:T3( GroupIsAlive )
     return GroupIsAlive
   end
@@ -17592,7 +17785,7 @@ function SCORING:_EventOnDeadOrCrash( Event )
     TargetUnitName = Event.IniDCSUnitName
     TargetGroup = Event.IniDCSGroup
     TargetGroupName = Event.IniDCSGroupName
-    TargetPlayerName = TargetUnit:getPlayerName()
+    TargetPlayerName = Event.IniPlayerName
 
     TargetCoalition = TargetUnit:getCoalition()
     --TargetCategory = TargetUnit:getCategory()
@@ -17839,7 +18032,7 @@ function SCORING:_EventOnHit( Event )
     InitUnitName = Event.IniDCSUnitName
     InitGroup = Event.IniDCSGroup
     InitGroupName = Event.IniDCSGroupName
-    InitPlayerName = InitUnit:getPlayerName()
+    InitPlayerName = Event.IniPlayerName
 
     InitCoalition = InitUnit:getCoalition()
     --TODO: Workaround Client DCS Bug
@@ -17861,7 +18054,7 @@ function SCORING:_EventOnHit( Event )
     TargetUnitName = Event.TgtDCSUnitName
     TargetGroup = Event.TgtDCSGroup
     TargetGroupName = Event.TgtDCSGroupName
-    TargetPlayerName = TargetUnit:getPlayerName()
+    TargetPlayerName = Event.TgtPlayerName
 
     TargetCoalition = TargetUnit:getCoalition()
     --TODO: Workaround Client DCS Bug
@@ -19922,10 +20115,12 @@ function SPAWN:_RandomizeTemplate( SpawnIndex )
     self.SpawnGroups[SpawnIndex].SpawnTemplate.x = self.SpawnTemplate.x
     self.SpawnGroups[SpawnIndex].SpawnTemplate.y = self.SpawnTemplate.y
     self.SpawnGroups[SpawnIndex].SpawnTemplate.start_time = self.SpawnTemplate.start_time
+    local OldX = self.SpawnGroups[SpawnIndex].SpawnTemplate.units[1].x
+    local OldY = self.SpawnGroups[SpawnIndex].SpawnTemplate.units[1].y
     for UnitID = 1, #self.SpawnGroups[SpawnIndex].SpawnTemplate.units do
       self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].heading = self.SpawnTemplate.units[1].heading
-      self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].x = self.SpawnTemplate.units[1].x
-      self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].y = self.SpawnTemplate.units[1].y
+      self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].x = self.SpawnTemplate.units[1].x + ( self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].x - OldX ) 
+      self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].y = self.SpawnTemplate.units[1].y + ( self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].y - OldY )
       self.SpawnGroups[SpawnIndex].SpawnTemplate.units[UnitID].alt = self.SpawnTemplate.units[1].alt
     end
   end
@@ -22269,9 +22464,8 @@ function MISSILETRAINER:_EventShot( Event )
     end
   else
      -- TODO: some weapons don't know the target unit... Need to develop a workaround for this.
-    SCHEDULER:New( TrainerWeapon, TrainerWeapon.destroy, {}, 2 )
-		if ( TrainerWeapon:getTypeName() == "9M311" ) then
-		SCHEDULER:New( TrainerWeapon, TrainerWeapon.destroy, {}, 2 )
+ if ( TrainerWeapon:getTypeName() == "9M311" ) then
+		SCHEDULER:New( TrainerWeapon, TrainerWeapon.destroy, {}, 1 )
 		else
 		end
   end
@@ -25560,7 +25754,7 @@ function AI_PATROL_ZONE:onafterStart( Controllable, From, Event, To )
   self.Controllable:OnReSpawn(
     function( PatrolGroup )
       self:E( "ReSpawn" )
-      self:__Reset()
+      self:__Reset( 1 )
       self:__Route( 5 )
     end
   )
@@ -25986,8 +26180,8 @@ AI_CAS_ZONE = {
 -- @param Dcs.DCSTypes#Altitude PatrolCeilingAltitude The highest altitude in meters where to execute the patrol.
 -- @param Dcs.DCSTypes#Speed  PatrolMinSpeed The minimum speed of the @{Controllable} in km/h.
 -- @param Dcs.DCSTypes#Speed  PatrolMaxSpeed The maximum speed of the @{Controllable} in km/h.
+-- @param Core.Zone#ZONE_BASE EngageZone The zone where the engage will happen.
 -- @param Dcs.DCSTypes#AltitudeType PatrolAltType The altitude type ("RADIO"=="AGL", "BARO"=="ASL"). Defaults to RADIO
--- @param Core.Zone#ZONE EngageZone
 -- @return #AI_CAS_ZONE self
 function AI_CAS_ZONE:New( PatrolZone, PatrolFloorAltitude, PatrolCeilingAltitude, PatrolMinSpeed, PatrolMaxSpeed, EngageZone, PatrolAltType )
 
@@ -31079,7 +31273,7 @@ function TASK:onenterAssigned( From, Event, To )
   self:E("Task Assigned")
   
   self:MessageToGroups( "Task " .. self:GetName() .. " has been assigned to your group." )
-  self:GetMission():__Start()
+  self:GetMission():__Start( 1 )
 end
 
 
@@ -31095,7 +31289,7 @@ function TASK:onenterSuccess( From, Event, To )
   self:MessageToGroups( "Task " .. self:GetName() .. " is successful! Good job!" )
   self:UnAssignFromGroups()
   
-  self:GetMission():__Complete()
+  self:GetMission():__Complete( 1 )
   
 end
 
